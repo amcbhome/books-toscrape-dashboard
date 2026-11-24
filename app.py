@@ -8,6 +8,44 @@ st.set_page_config(
     layout="wide",
 )
 
+# --- Custom CSS: Fit on one screen & enlarge metric cards ---
+st.markdown(
+    """
+    <style>
+        /* Reduce top/bottom page padding so everything fits on one screen */
+        .block-container {
+            padding-top: 1.5rem;
+            padding-bottom: 1rem;
+            max-width: 96%;
+        }
+        /* Style KPI cards as distinct, readable boxes */
+        div[data-testid="stMetric"] {
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        /* Enlarge KPI labels */
+        div[data-testid="stMetricLabel"] p {
+            font-size: 1.05rem !important;
+            font-weight: 600 !important;
+        }
+        /* Enlarge KPI numbers */
+        div[data-testid="stMetricValue"] {
+            font-size: 2.35rem !important;
+            font-weight: 700 !important;
+            line-height: 1.15 !important;
+        }
+        /* Tighten spacing around dividers */
+        hr {
+            margin-top: 0.75rem !important;
+            margin-bottom: 0.75rem !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
@@ -31,45 +69,37 @@ avg_price_5 = five_star_df["price"].mean()
 min_price_5 = five_star_df["price"].min()
 max_price_5 = five_star_df["price"].max()
 
-# --- Header ---
-st.title("Books to Scrape: 5-Star Catalogue Overview")
-st.caption("Source: books.toscrape.com (1,000-book catalogue)")
+# --- Compact Header ---
+title_col, meta_col = st.columns([3, 1])
+with title_col:
+    st.markdown("## Books to Scrape: 5-Star Catalogue Overview")
+with meta_col:
+    st.markdown(
+        "<div style='text-align:right; padding-top:12px; opacity:0.75;'>"
+        "Source: books.toscrape.com (1,000 books)</div>",
+        unsafe_allow_html=True,
+    )
 
 # --- KPI Cards: Row 1 (Counts & Averages) ---
-st.subheader("Catalogue & 5-Star Metrics")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(label="Total Number of Books", value=f"{total_books:,}")
-with col2:
-    st.metric(
-        label="5-Star Books",
-        value=f"{total_five_star:,}",
-        delta=f"{(total_five_star / total_books) * 100:.1f}% of catalogue",
-    )
-with col3:
-    st.metric(label="Avg Cost (5-Star Book)", value=f"£{avg_price_5:.2f}")
-with col4:
-    st.metric(label="Avg Cost (All 1,000 Books)", value=f"£{avg_price_all:.2f}")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total Number of Books", f"{total_books:,}")
+c2.metric("5-Star Books", f"{total_five_star:,} ({(total_five_star / total_books) * 100:.1f}%)")
+c3.metric("Avg Cost (5-Star Book)", f"£{avg_price_5:.2f}")
+c4.metric("Avg Cost (All 1,000 Books)", f"£{avg_price_all:.2f}")
 
 # --- KPI Cards: Row 2 (Min & Max Ranges) ---
-col5, col6, col7, col8 = st.columns(4)
-
-with col5:
-    st.metric(label="Min Cost (5-Star Book)", value=f"£{min_price_5:.2f}")
-with col6:
-    st.metric(label="Max Cost (5-Star Book)", value=f"£{max_price_5:.2f}")
-with col7:
-    st.metric(label="Min Cost (All Books)", value=f"£{min_price_all:.2f}")
-with col8:
-    st.metric(label="Max Cost (All Books)", value=f"£{max_price_all:.2f}")
+c5, c6, c7, c8 = st.columns(4)
+c5.metric("Min Cost (5-Star Book)", f"£{min_price_5:.2f}")
+c6.metric("Max Cost (5-Star Book)", f"£{max_price_5:.2f}")
+c7.metric("Min Cost (All Books)", f"£{min_price_all:.2f}")
+c8.metric("Max Cost (All Books)", f"£{max_price_all:.2f}")
 
 st.divider()
 
 # --- Pictorial Showcase: 4 Selected 5-Star Books ---
-header_col, btn_col = st.columns([4, 1])
+header_col, btn_col = st.columns([5, 1])
 with header_col:
-    st.subheader("Featured 5-Star Books")
+    st.markdown("### Featured 5-Star Books")
 with btn_col:
     if st.button("Shuffle 4 Books", use_container_width=True):
         st.session_state["sample_seed"] = st.session_state.get("sample_seed", 42) + 1
@@ -81,20 +111,12 @@ pic_cols = st.columns(4)
 for col, (_, book) in zip(pic_cols, featured_books.iterrows()):
     with col:
         with st.container(border=True):
-            st.image(book["image_url"], use_container_width=True)
-            st.markdown(f"**{book['title']}**")
-            st.write(f"Price: **£{book['price']:.2f}** | Rating: ★★★★★")
-            st.link_button("View on Site", book["book_url"], use_container_width=True)
-
-# --- Full 5-Star Data Table ---
-with st.expander(f"View all {total_five_star} 5-Star Books"):
-    st.dataframe(
-        five_star_df[["title", "price", "book_url"]].sort_values(by="price"),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "title": "Book Title",
-            "price": st.column_config.NumberColumn("Price (£)", format="£%.2f"),
-            "book_url": st.column_config.LinkColumn("Catalogue Link"),
-        },
-    )
+            img_col, info_col = st.columns([1.15, 1.35])
+            with img_col:
+                # Native width (155px) keeps the cover crisp and prevents stretching
+                st.image(book["image_url"], width=155)
+            with info_col:
+                st.markdown(f"**{book['title']}**")
+                st.markdown(f"### £{book['price']:.2f}")
+                st.caption("★★★★★ (5/5)")
+                st.link_button("View Book", book["book_url"], use_container_width=True)
